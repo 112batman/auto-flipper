@@ -15,6 +15,8 @@ import { sendWebhookInitialized } from './webhookHandler'
 import { setupConsoleInterface } from './consoleHandler'
 import { initAFKHandler } from './AFKHandler'
 const WebSocket = require('ws')
+import axios from 'axios'
+const crypto = require('crypto')
 var prompt = require('prompt-sync')()
 initConfigHelper()
 initLogger()
@@ -27,7 +29,7 @@ if (!ingameName) {
     updatePersistentConfigProperty('INGAME_NAME', ingameName)
 }
 
-const bot: MyBot = createBot({
+const bot: MyBot = <any> createBot({
     username: ingameName,
     auth: 'microsoft',
     logErrors: true,
@@ -35,6 +37,34 @@ const bot: MyBot = createBot({
     host: 'mc.hypixel.net'
 })
 bot.setMaxListeners(0)
+
+bot.auctionEndedHandlers = {}
+bot.registerAuctionEndedHandler = (handler, ...auctionIds: string[]) => {
+    const id = crypto.randomBytes(20).toString('hex')
+    bot.auctionEndedHandlers[id] = {
+        ids: auctionIds,
+        handler
+    }
+    return id
+}
+bot.unregisterAuctionEndedHandler = (id) => {
+    if(bot.auctionEndedHandlers[id]) delete bot.auctionEndedHandlers[id]
+}
+
+setInterval(async () => {
+    try {
+        const auctions = (await axios.get('https://api.hypixel.net/skyblock/auctions_ended')).data.auctions
+        auctions.forEach(auction => {
+            const aId = auction.auction_id
+            Object.values(bot.auctionEndedHandlers).filter(o => o.ids.includes(aId)).forEach(o => {
+                o.handler(auction)
+            })
+        })
+    } catch (e) {
+        log('Error while fetching ended auctions')
+        log(e)
+    }
+}, 60 * 1000)
 
 bot.state = 'gracePeriod'
 createFastWindowClicker(bot._client)

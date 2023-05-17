@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { getConfigProperty } from './configHelper'
 
-function sendWebhookData(options: Partial<Webhook>): void {
+export function sendWebhookData(options: Partial<Webhook>): void {
     let data = {
         content: options.content || '',
         avatar_url: options.avatar_url,

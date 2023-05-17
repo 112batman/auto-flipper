@@ -33,4 +33,12 @@ interface MyBot extends Bot {
     state?: 'purchasing' | 'selling' | 'claiming' | 'gracePeriod'
     lastViewAuctionCommandForPurchase?: string
     privacySettings?: any
+    auctionEndedHandlers: {
+        [key: string]: {
+            ids: string[],
+            handler: (id: string) => void
+        }
+    },
+    registerAuctionEndedHandler: (handler: (data: any) => void, ...auctionIds: string[]) => string,
+    unregisterAuctionEndedHandler: (id: string) => void
 }

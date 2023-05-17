@@ -1,7 +1,9 @@
 import { Flip, MyBot } from '../types/autobuy'
+import { getConfigProperty } from './configHelper'
 import { getFastWindowClicker } from './fastWindowClick'
 import { log } from './logger'
 import { sleep } from './utils'
+import { sendWebhookData } from './webhookHandler'
 
 export async function flipHandler(bot: MyBot, flip: Flip) {
     flip.purchaseAt = new Date(flip.purchaseAt)
@@ -25,6 +27,43 @@ export async function flipHandler(bot: MyBot, flip: Flip) {
     let delayUntilBuyStart = isBed ? flip.purchaseAt.getTime() - new Date().getTime() : 0
 
     bot.lastViewAuctionCommandForPurchase = `/viewauction ${flip.id}`
+
+    const viewAuctionCommandSentAt = new Date()
+    const auctionEndedHandlerId = bot.registerAuctionEndedHandler((data) => {
+        bot.unregisterAuctionEndedHandler(auctionEndedHandlerId)
+        
+        if(data.buyer === bot.player.uuid.replace('-', '')) {
+            const endedTimestamp = data.timestamp
+            const buyTime = endedTimestamp - viewAuctionCommandSentAt.valueOf()
+
+            sendWebhookData({
+                embeds: [
+                    {
+                        title: 'Time To Purchase',
+                        fields: [
+                            {
+                                name: 'Item:',
+                                value: `\`\`\`${flip.itemName}\`\`\``,
+                                inline: true
+                            },
+                            {
+                                name: 'Originally purchased around:',
+                                value: `\`\`\`<t:${viewAuctionCommandSentAt}:T>\`\`\``,
+                                inline: true
+                            },
+                            {
+                                name: 'Bought in:',
+                                value: `\`\`\`${buyTime}ms\`\`\``,
+                                inline: true
+                            }
+                        ],
+                        thumbnail: { url: `https://minotar.net/helm/${getConfigProperty('INGAME_NAME')}/600.png` }
+                    }
+                ]
+            })
+        }
+    }, flip.id)
+
     bot.chat(bot.lastViewAuctionCommandForPurchase)
     await sleep(delayUntilBuyStart)
     if (isBed) {
