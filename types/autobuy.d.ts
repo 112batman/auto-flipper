@@ -40,5 +40,7 @@ interface MyBot extends Bot {
         }
     },
     registerAuctionEndedHandler: (handler: (data: any) => void, ...auctionIds: string[]) => string,
-    unregisterAuctionEndedHandler: (id: string) => void
+    unregisterAuctionEndedHandler: (id: string) => void,
+    currentPingPromise: Promise<number> | null,
+    ping: () => Promise<number> 
 }

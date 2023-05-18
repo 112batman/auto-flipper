@@ -51,10 +51,29 @@ bot.unregisterAuctionEndedHandler = (id) => {
     if(bot.auctionEndedHandlers[id]) delete bot.auctionEndedHandlers[id]
 }
 
+bot.currentPingPromise = null
+bot.ping = () => {
+    if(bot.currentPingPromise !== null) return bot.currentPingPromise
+
+    bot.currentPingPromise = new Promise(res => {
+        const start = new Date().valueOf()
+        bot._client.on('packet', (data, meta) => {
+            if(meta.name === 'statistics') {
+                res(new Date().valueOf() - start)
+            }
+        })
+
+        bot._client.write('client_command', {
+            payload: 1
+        }) // Request statistics
+    })
+    return bot.currentPingPromise
+}
+
 setInterval(async () => {
     try {
         const auctions = (await axios.get('https://api.hypixel.net/skyblock/auctions_ended')).data.auctions
-        log(`Got ${auctions.length} ended auctions`)
+        console.log(`Got ${auctions.length} ended auctions`)
         auctions.forEach(auction => {
             const aId = auction.auction_id
             Object.values(bot.auctionEndedHandlers).filter(o => o.ids.includes(aId)).forEach(o => {
@@ -62,10 +81,18 @@ setInterval(async () => {
             })
         })
     } catch (e) {
-        log('Error while fetching ended auctions')
-        log(e)
+        console.log(e)
     }
-}, 5 * 1000)
+}, 60 * 1000)
+
+setInterval(async () => {
+    try {
+        const ping = await bot.ping()
+        console.log(`Current ping is ${ping}ms`)
+    } catch (e) {
+        console.log(e)
+    }
+}, 30 * 1000)
 
 bot.state = 'gracePeriod'
 createFastWindowClicker(bot._client)
