@@ -54,6 +54,7 @@ bot.unregisterAuctionEndedHandler = (id) => {
 setInterval(async () => {
     try {
         const auctions = (await axios.get('https://api.hypixel.net/skyblock/auctions_ended')).data.auctions
+        log(`Got ${auctions.length} ended auctions`)
         auctions.forEach(auction => {
             const aId = auction.auction_id
             Object.values(bot.auctionEndedHandlers).filter(o => o.ids.includes(aId)).forEach(o => {
@@ -64,7 +65,7 @@ setInterval(async () => {
         log('Error while fetching ended auctions')
         log(e)
     }
-}, 60 * 1000)
+}, 5 * 1000)
 
 bot.state = 'gracePeriod'
 createFastWindowClicker(bot._client)

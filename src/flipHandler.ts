@@ -31,6 +31,7 @@ export async function flipHandler(bot: MyBot, flip: Flip) {
     const viewAuctionCommandSentAt = new Date()
     const auctionEndedHandlerId = bot.registerAuctionEndedHandler((data) => {
         bot.unregisterAuctionEndedHandler(auctionEndedHandlerId)
+        log(data)
         
         if(data.buyer === bot.player.uuid.replace('-', '')) {
             const endedTimestamp = data.timestamp
