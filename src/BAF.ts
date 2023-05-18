@@ -67,6 +67,9 @@ bot.ping = () => {
             payload: 1
         }) // Request statistics
     })
+    bot.currentPingPromise.then(() => {
+        bot.currentPingPromise = null
+    })
     return bot.currentPingPromise
 }
 
