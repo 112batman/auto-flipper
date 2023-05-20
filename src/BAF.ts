@@ -104,7 +104,7 @@ if (getConfigProperty('LOG_PACKAGES') === 'true') {
     addLoggerToClientWriteFunction(bot._client)
 }
 
-//bot.once('login', connectWebsocket)
+bot.once('login', connectWebsocket)
 bot.once('spawn', async () => {
     await bot.waitForChunksToLoad()
     await sleep(2000)
