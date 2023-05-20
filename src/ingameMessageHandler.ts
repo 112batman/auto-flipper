@@ -1,8 +1,9 @@
 import { MyBot } from '../types/autobuy'
 import { log, printMcChatToConsole } from './logger'
-import { clickWindow, getWindowTitle } from './utils'
+import { clickWindow, getWindowTitle, wait } from './utils'
 import { ChatMessage } from 'prismarine-chat'
 import { sendWebhookItemPurchased, sendWebhookItemSold } from './webhookHandler'
+import { getConfigProperty } from './configHelper'
 
 export function registerIngameMessageHandler(bot: MyBot, wss: WebSocket) {
     bot.on('message', (message: ChatMessage, type) => {
@@ -28,13 +29,46 @@ export function registerIngameMessageHandler(bot: MyBot, wss: WebSocket) {
             }
             if (text.startsWith('[Auction]') && text.includes('bought') && text.includes('for')) {
                 log('New item sold')
-                claimSoldItem(bot, text.split(' bought ')[1].split(' for ')[0])
 
-                sendWebhookItemSold(
-                    text.split(' bought ')[1].split(' for ')[0],
-                    text.split(' for ')[1].split(' coins')[0],
-                    text.split('[Auction] ')[1].split(' bought ')[0]
-                )
+                new Promise(async _res => {
+                    while(bot.state) {
+                        console.log('Currently busy with something else (' + bot.state + ') -> not claiming sold item')
+                        await wait(1000)
+                    }
+                
+                    let timeout = setTimeout(() => {
+                        console.log('Seems something went wrong while claiming sold item. Removing lock')
+                        bot.state = null
+                        bot.removeAllListeners('windowOpen')
+                        _res(false)
+                    }, 10000)
+                    const res = (val) => {
+                        _res(val)
+                        clearTimeout(timeout)
+                        bot.state = null
+                        bot.removeAllListeners('windowOpen')
+                    }
+                
+                    bot.state = 'claiming'
+                    bot.chat(message.json.clickEvent.value)
+                
+                    bot.on('windowOpen', async window => {
+                        const lore = <string[]> (<any>window.slots[13].nbt).value.display.value.Lore.value.value
+                        const sellerLine = lore.find(l => l.includes('Seller:'))
+                        if(sellerLine.endsWith(getConfigProperty('INGAME_NAME'))) {
+                            clickWindow(bot, 31)
+                            res(true)
+                        }else {
+                            res(false)
+                        }
+                    })
+                }).then(flag => {
+                    if(flag) sendWebhookItemSold(
+                        text.split(' bought ')[1].split(' for ')[0],
+                        text.split(' for ')[1].split(' coins')[0],
+                        text.split('[Auction] ')[1].split(' bought ')[0]
+                    )
+                })
             }
             if (bot.privacySettings && bot.privacySettings.chatRegex.test(text)) {
                 wss.send(

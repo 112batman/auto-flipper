@@ -26,3 +26,11 @@ export function numberWithThousandsSeparators(number?: number): string {
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',')
     return parts.join('.')
 }
+
+export function wait(ms: number): Promise<void> {
+    return new Promise(res => {
+        setTimeout(() => {
+            res()
+        }, ms)
+    })
+}
