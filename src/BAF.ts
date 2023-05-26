@@ -8,7 +8,7 @@ import { tradePerson } from './tradeHandler'
 import { swapProfile } from './swapProfileHandler'
 import { flipHandler } from './flipHandler'
 import { registerIngameMessageHandler } from './ingameMessageHandler'
-import { MyBot, TextMessageData } from '../types/autobuy'
+import { MyBot, SellData, TextMessageData } from '../types/autobuy'
 import { getConfigProperty, initConfigHelper, updatePersistentConfigProperty } from './configHelper'
 import { getSessionId } from './coflSessionManager'
 import { sendWebhookInitialized } from './webhookHandler'
@@ -21,7 +21,7 @@ var prompt = require('prompt-sync')()
 initConfigHelper()
 initLogger()
 const version = '1.5.0-af'
-let wss: WebSocket
+const wss: WebSocket[] = []
 let ingameName = getConfigProperty('INGAME_NAME')
 
 if (!ingameName) {
@@ -110,29 +110,35 @@ bot.once('spawn', async () => {
     await sleep(2000)
     bot.chat('/play sb')
     bot.on('scoreboardTitleChanged', onScoreboardChanged)
-    registerIngameMessageHandler(bot, wss)
+    wss.forEach(w => {
+        registerIngameMessageHandler(bot, w)
+    })
 })
 
+const wss_count = 2
 function connectWebsocket() {
-    wss = new WebSocket(`wss://sky.coflnet.com/modsocket?player=${ingameName}&version=${version}&SId=${getSessionId(ingameName)}`)
-    wss.onopen = function () {
-        setupConsoleInterface(wss)
-        sendWebhookInitialized()
-    }
-    wss.onmessage = onWebsocketMessage
-    wss.onclose = function (e) {
-        log('Connection closed. Reconnecting... ', 'warn')
-        setTimeout(function () {
-            connectWebsocket()
-        }, 1000)
-    }
-    wss.onerror = function (err) {
-        log('Connection error: ' + JSON.stringify(err), 'error')
-        wss.close()
+    for(let i = 0; i < wss_count; i++) {
+        wss.push(new WebSocket(`wss://sky.coflnet.com/modsocket?player=${ingameName}&version=${version}&SId=${getSessionId(ingameName, i)}`))
+        const w = wss[i]
+        w.onopen = function () {
+            if(i === 0) setupConsoleInterface(w)
+            sendWebhookInitialized()
+        }
+        w.onmessage = (msg) => onWebsocketMessage(msg, w, i)
+        w.onclose = function (e) {
+            log('Connection closed. Reconnecting... ', 'warn')
+            setTimeout(function () {
+                connectWebsocket()
+            }, 1000)
+        }
+        w.onerror = function (err) {
+            log('Connection error: ' + JSON.stringify(err), 'error')
+            w.close()
+        }
     }
 }
 
-async function onWebsocketMessage(msg) {
+async function onWebsocketMessage(msg, w: WebSocket, i: number) {
     let message = JSON.parse(msg.data)
     let data = JSON.parse(message.data)
     if (message.type !== 'chatMessage') {
@@ -144,7 +150,7 @@ async function onWebsocketMessage(msg) {
             flipHandler(bot, data)
             break
         case 'chatMessage':
-            if (getConfigProperty('USE_COFL_CHAT')) {
+            if (i === 0 && getConfigProperty('USE_COFL_CHAT')) {
                 for (let da of [...(data as TextMessageData[])]) {
                     printMcChatToConsole(da.text)
                 }
@@ -154,13 +160,13 @@ async function onWebsocketMessage(msg) {
             printMcChatToConsole((data as TextMessageData).text)
             break
         case 'swapProfile':
-            swapProfile(bot, data)
+            //swapProfile(bot, data)
             break
         case 'createAuction':
             onWebsocketCreateAuction(bot, data)
             break
         case 'trade':
-            tradePerson(bot, wss, data)
+            //tradePerson(bot, w, data)
             break
         case 'tradeResponse':
             let tradeDisplay = (bot.currentWindow.slots[39].nbt.value as any).display.value.Name.value
@@ -171,7 +177,7 @@ async function onWebsocketMessage(msg) {
             break
         case 'getInventory':
             log('Uploading inventory...')
-            wss.send(
+            w.send(
                 JSON.stringify({
                     type: 'uploadInventory',
                     data: JSON.stringify(bot.inventory)

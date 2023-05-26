@@ -3,7 +3,7 @@ import crypto from 'crypto'
 
 const SESSIONS_KEY = 'SESSIONS'
 
-export function getSessionId(username: string): string {
+export function getSessionId(username: string, i: number): string {
     let sessions = getConfigProperty(SESSIONS_KEY) as SESSIONS
 
     if (!sessions) {
@@ -11,20 +11,21 @@ export function getSessionId(username: string): string {
         updatePersistentConfigProperty(SESSIONS_KEY, {})
     }
 
-    if (!sessions[username]) {
-        sessions[username] = {
+    const k = `${username}@${i}`
+    if (!sessions[k]) {
+        sessions[k] = {
             id: crypto.randomUUID(),
             expires: new Date(new Date().getTime() + 1000 * 60 * 60 * 24 * 180)
         }
         updatePersistentConfigProperty(SESSIONS_KEY, sessions)
     }
 
-    if (isExpired(sessions[username].expires)) {
-        delete sessions[username]
+    if (isExpired(sessions[k].expires)) {
+        delete sessions[k]
         updatePersistentConfigProperty(SESSIONS_KEY, sessions)
         return null
     } else {
-        return sessions[username].id
+        return sessions[k].id
     }
 }
 
