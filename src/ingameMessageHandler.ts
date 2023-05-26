@@ -5,7 +5,9 @@ import { ChatMessage } from 'prismarine-chat'
 import { sendWebhookItemPurchased, sendWebhookItemSold } from './webhookHandler'
 import { getConfigProperty } from './configHelper'
 
-export function registerIngameMessageHandler(bot: MyBot, wss: WebSocket) {
+export function registerIngameMessageHandler(bot: MyBot, wss: {
+    send: (text: string) => void
+}) {
     bot.on('message', (message: ChatMessage, type) => {
         let text = message.getText(null)
         if (type == 'chat') {

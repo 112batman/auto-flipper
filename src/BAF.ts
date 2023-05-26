@@ -110,8 +110,12 @@ bot.once('spawn', async () => {
     await sleep(2000)
     bot.chat('/play sb')
     bot.on('scoreboardTitleChanged', onScoreboardChanged)
-    wss.forEach(w => {
-        registerIngameMessageHandler(bot, w)
+    registerIngameMessageHandler(bot, {
+        send: (text) => {
+            wss.forEach(w => {
+                w.send(text)
+            })
+        }
     })
 })
 
@@ -150,7 +154,7 @@ async function onWebsocketMessage(msg, w: WebSocket, i: number) {
             flipHandler(bot, data)
             break
         case 'chatMessage':
-            if (i === 0 && getConfigProperty('USE_COFL_CHAT')) {
+            if (getConfigProperty('USE_COFL_CHAT')) {
                 for (let da of [...(data as TextMessageData[])]) {
                     printMcChatToConsole(da.text)
                 }
