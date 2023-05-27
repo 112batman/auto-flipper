@@ -122,23 +122,27 @@ bot.once('spawn', async () => {
 const wss_count = 2
 function connectWebsocket() {
     for(let i = 0; i < wss_count; i++) {
-        wss.push(new WebSocket(`wss://sky.coflnet.com/modsocket?player=${ingameName}&version=${version}&SId=${getSessionId(ingameName, i)}`))
-        const w = wss[i]
-        w.onopen = function () {
-            if(i === 0) setupConsoleInterface(w)
-            sendWebhookInitialized()
+        const innerConnect = () => {
+            wss[i] = new WebSocket(`wss://sky.coflnet.com/modsocket?player=${ingameName}&version=${version}&SId=${getSessionId(ingameName, i)}`)
+            const w = wss[i]
+            w.onopen = function () {
+                if(i === 0) setupConsoleInterface(w)
+                sendWebhookInitialized()
+            }
+            w.onmessage = (msg) => onWebsocketMessage(msg, w, i)
+            w.onclose = function (e) {
+                log('Connection closed. Reconnecting... ', 'warn')
+                setTimeout(function () {
+                    innerConnect()
+                }, 1000)
+            }
+            w.onerror = function (err) {
+                log('Connection error: ' + JSON.stringify(err), 'error')
+                w.close()
+            }
         }
-        w.onmessage = (msg) => onWebsocketMessage(msg, w, i)
-        w.onclose = function (e) {
-            log('Connection closed. Reconnecting... ', 'warn')
-            setTimeout(function () {
-                connectWebsocket()
-            }, 1000)
-        }
-        w.onerror = function (err) {
-            log('Connection error: ' + JSON.stringify(err), 'error')
-            w.close()
-        }
+
+        innerConnect()
     }
 }
 
