@@ -34,3 +34,11 @@ export function wait(ms: number): Promise<void> {
         }, ms)
     })
 }
+
+export function isCoflChatMessage(message: string) {
+    return removeMinecraftColorCodes(message).startsWith('[Chat]')
+}
+
+export function removeMinecraftColorCodes(text: string) {
+    return text?.replace(/§[0-9a-fk-or]/gi, '')
+}
